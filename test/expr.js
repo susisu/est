@@ -8,8 +8,9 @@
 var chai   = require("chai"),
     expect = chai.expect;
 
-var est  = require("../index.js"),
-    expr = est.expr;
+var est   = require("../index.js"),
+    value = est.value,
+    expr  = est.expr;
 
 describe("expr", () => {
     describe("Context", () => {
@@ -98,6 +99,30 @@ describe("expr", () => {
                 expect(() => { e.optimise(ctx); }).to.throw();
             });
         });
+
+        describe("#eval_(env)", () => {
+            it("should throw an error", () => {
+                var env = Object.create(null);
+                var e = new expr.Expression(0);
+                expect(() => { e.eval_(env); }).to.throw(value.RuntimeError);
+            });
+        });
+
+        describe("#eval(env)", () => {
+            it("should evaluate the expression and cache the result", () => {
+                var env = Object.create(null);
+                var e = new expr.Literal(0, 256);
+                var r = e.eval(env);
+                expect(r).to.equal(256);
+                expect(e.result).to.equal(256);
+
+                e.eval_ = () => { throw "should not be called"; };
+                expect(() => {
+                    var r = e.eval(env);
+                    expect(r).to.equal(256);
+                }).not.to.throw();
+            });
+        });
     });
 
     describe("Literal", () => {
@@ -133,6 +158,16 @@ describe("expr", () => {
                 var e3 = new expr.Literal(2, 128);
                 expect(e2.optimise(ctx)).to.equal(e1);
                 expect(e3.optimise(ctx)).to.equal(e3);
+            });
+        });
+
+        describe("#eval_(env)", () => {
+            it("should return the value", () => {
+                var env = Object.create(null, {
+                    x: { value: 256 }
+                });
+                var e = new expr.Literal(0, 256);
+                expect(e.eval(env)).to.equal(256);
             });
         });
     });
@@ -212,6 +247,25 @@ describe("expr", () => {
                 expect(e3.optimise(ctx)).not.to.equal(e3);
             });
         });
+
+        describe("#eval_(env)", () => {
+            it("should return a vector (array) that contains the evaluated elements", () => {
+                var env = Object.create(null, {
+                    x: { value: 256 }
+                });
+                var e1 = new expr.Vector(0, [
+                    new expr.Literal(1, 128),
+                    new expr.Variable(2, "x")
+                ]);
+                expect(e1.eval(env)).to.deep.equal([128, 256]);
+
+                var e2 = new expr.Vector(0, [
+                    new expr.Literal(1, 128),
+                    new expr.Variable(2, "y")
+                ]);
+                expect(() => { e2.eval(env); }).to.throw(value.RuntimeError);
+            });
+        });
     });
 
     describe("Variable", () => {
@@ -253,6 +307,19 @@ describe("expr", () => {
                 expect(e1.optimise(ctx)).to.equal(e);
                 expect(e2.optimise(ctx)).to.equal(e);
                 expect(e3.optimise(ctx)).to.equal(e3);
+            });
+        });
+
+        describe("#eval_(env)", () => {
+            it("should return the value bound to the name in 'env'", () => {
+                var env = Object.create(null, {
+                    x: { value: 256 }
+                });
+                var e1 = new expr.Variable(0, "x");
+                expect(e1.eval_(env)).to.equal(256);
+
+                var e2 = new expr.Variable(1, "y");
+                expect(() => { e2.eval_(env); }).to.throw(value.RuntimeError);
             });
         });
     });
@@ -334,6 +401,31 @@ describe("expr", () => {
                 expect(e3.optimise(ctx)).not.to.equal(e3);
             });
         });
+
+        describe("#eval_(env)", () => {
+            it("should return the result of the application", () => {
+                var env = Object.create(null, {
+                    x: { value: 256 }
+                });
+                var e1 = new expr.Apply(0,
+                    new expr.Literal(1, x => 2 * x),
+                    new expr.Variable(2, "x")
+                );
+                expect(e1.eval_(env)).to.equal(512);
+
+                var e2 = new expr.Apply(0,
+                    new expr.Literal(1, x => 2 * x),
+                    new expr.Variable(2, "y")
+                );
+                expect(() => { e2.eval_(env); }).to.throw(value.RuntimeError);
+
+                var e3 = new expr.Apply(0,
+                    new expr.Literal(1, 128),
+                    new expr.Variable(2, "x")
+                );
+                expect(() => { e3.eval_(env); }).to.throw(value.RuntimeError);
+            });
+        });
     });
 
     describe("Let", () => {
@@ -407,6 +499,31 @@ describe("expr", () => {
                         new expr.Literal(-1, 256),
                     ])
                 )).to.be.true;
+            });
+        });
+
+        describe("#eval_(env)", () => {
+            it("should return the result of the evaluation of 'body' where 'expr' is bound to 'name'", () => {
+                var env = Object.create(null, {
+                    x: { value: 256 }
+                });
+                var e1 = new expr.Let(0,
+                    "y", new expr.Literal(1, 128),
+                    new expr.Variable(2, "x")
+                );
+                expect(e1.eval_(env)).to.equal(256);
+
+                var e2 = new expr.Let(0,
+                    "x", new expr.Literal(1, 128),
+                    new expr.Variable(2, "x")
+                );
+                expect(e2.eval_(env)).to.equal(128);
+
+                var e3 = new expr.Let(0,
+                    "x", new expr.Literal(1, 128),
+                    new expr.Variable(2, "y")
+                );
+                expect(() => { e3.eval_(env); }).to.throw(value.RuntimeError);
             });
         });
     });
