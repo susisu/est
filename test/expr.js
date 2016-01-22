@@ -179,7 +179,7 @@ describe("expr", () => {
                     new expr.Literal(1, 256),
                     new expr.Variable(2, "x")
                 ]);
-                expect(e.toString()).to.equal("[256,x]");
+                expect(e.toString()).to.equal("[256, x]");
             });
         });
 
