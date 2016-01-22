@@ -6,5 +6,6 @@
 "use strict";
 
 describe("est", () => {
+    require("./value.js");
     require("./expr.js");
 });
