@@ -8,4 +8,5 @@
 describe("est", () => {
     require("./value.js");
     require("./expr.js");
+    require("./parser.js");
 });
