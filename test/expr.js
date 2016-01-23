@@ -92,11 +92,11 @@ describe("expr", () => {
             });
         });
 
-        describe("#optimise(context)", () => {
+        describe("#optimise_(context)", () => {
             it("should throw an error", () => {
                 var ctx = expr.Context.empty();
                 var e = new expr.Expression(0);
-                expect(() => { e.optimise(ctx); }).to.throw();
+                expect(() => { e.optimise_(ctx); }).to.throw();
             });
         });
 
@@ -149,15 +149,15 @@ describe("expr", () => {
             });
         });
 
-        describe("#optimise(context)", () => {
+        describe("#optimise_(context)", () => {
             it("should return the optimised expression with 'context'", () => {
                 var ctx = expr.Context.empty();
                 var e1 = new expr.Literal(0, 256);
-                e1 = e1.optimise(ctx);
+                e1 = e1.optimise_(ctx);
                 var e2 = new expr.Literal(1, 256);
                 var e3 = new expr.Literal(2, 128);
-                expect(e2.optimise(ctx)).to.equal(e1);
-                expect(e3.optimise(ctx)).to.equal(e3);
+                expect(e2.optimise_(ctx)).to.equal(e1);
+                expect(e3.optimise_(ctx)).to.equal(e3);
             });
         });
 
@@ -223,14 +223,14 @@ describe("expr", () => {
             });
         });
 
-        describe("#optimise(context)", () => {
+        describe("#optimise_(context)", () => {
             it("should return the optimised expression with 'context'", () => {
                 var ctx = expr.Context.empty();
                 var e1 = new expr.Vector(0, [
                     new expr.Literal(1, 256),
                     new expr.Variable(2, "x")
                 ]);
-                e1 = e1.optimise(ctx);
+                e1 = e1.optimise_(ctx);
                 var e2 = new expr.Vector(3, [
                     new expr.Literal(4, 256),
                     new expr.Variable(5, "x")
@@ -238,13 +238,13 @@ describe("expr", () => {
                 var e3 = new expr.Vector(6, [
                     new expr.Literal(7, 256)
                 ]);
-                expect(e2.optimise(ctx)).to.equal(e1);
-                expect(e3.optimise(ctx).equals(
+                expect(e2.optimise_(ctx)).to.equal(e1);
+                expect(e3.optimise_(ctx).equals(
                     new expr.Vector(-1, [
                         new expr.Literal(-1, 256)
                     ])
                 )).to.be.true;
-                expect(e3.optimise(ctx)).not.to.equal(e3);
+                expect(e3.optimise_(ctx)).not.to.equal(e3);
             });
         });
 
@@ -292,21 +292,21 @@ describe("expr", () => {
             });
         });
 
-        describe("#optimise(context)", () => {
+        describe("#optimise_(context)", () => {
             it("should return the optimised expression with 'context'", () => {
                 var ctx = expr.Context.empty();
                 var e1 = new expr.Variable(0, "x");
-                e1 = e1.optimise(ctx);
+                e1 = e1.optimise_(ctx);
                 var e2 = new expr.Variable(1, "x");
                 var e3 = new expr.Variable(2, "y");
-                expect(e2.optimise(ctx)).to.equal(e1);
-                expect(e3.optimise(ctx)).to.equal(e3);
+                expect(e2.optimise_(ctx)).to.equal(e1);
+                expect(e3.optimise_(ctx)).to.equal(e3);
 
                 var e = new expr.Literal(3, 256);
                 ctx = ctx.bind("x", e);
-                expect(e1.optimise(ctx)).to.equal(e);
-                expect(e2.optimise(ctx)).to.equal(e);
-                expect(e3.optimise(ctx)).to.equal(e3);
+                expect(e1.optimise_(ctx)).to.equal(e);
+                expect(e2.optimise_(ctx)).to.equal(e);
+                expect(e3.optimise_(ctx)).to.equal(e3);
             });
         });
 
@@ -375,14 +375,14 @@ describe("expr", () => {
             });
         });
 
-        describe("#optimise(context)", () => {
+        describe("#optimise_(context)", () => {
             it("should return the optimised expression with 'context'", () => {
                 var ctx = expr.Context.empty();
                 var e1 = new expr.Apply(0,
                     new expr.Variable(1, "f"),
                     new expr.Variable(2, "x")
                 );
-                e1 = e1.optimise(ctx);
+                e1 = e1.optimise_(ctx);
                 var e2 = new expr.Apply(3,
                     new expr.Variable(4, "f"),
                     new expr.Variable(5, "x")
@@ -391,14 +391,14 @@ describe("expr", () => {
                     new expr.Variable(1, "f"),
                     new expr.Variable(2, "y")
                 );
-                expect(e2.optimise(ctx)).to.equal(e1);
-                expect(e3.optimise(ctx).equals(
+                expect(e2.optimise_(ctx)).to.equal(e1);
+                expect(e3.optimise_(ctx).equals(
                     new expr.Apply(-1,
                         new expr.Variable(-1, "f"),
                         new expr.Variable(-1, "y")
                     )
                 )).to.be.true;
-                expect(e3.optimise(ctx)).not.to.equal(e3);
+                expect(e3.optimise_(ctx)).not.to.equal(e3);
             });
         });
 
@@ -470,7 +470,7 @@ describe("expr", () => {
             });
         });
 
-        describe("#optimise(context)", () => {
+        describe("#optimise_(context)", () => {
             it("should return the optimised expression with 'context'", () => {
                 var ctx = expr.Context.empty();
                 var v1 = new expr.Variable(2, "y");
@@ -478,13 +478,13 @@ describe("expr", () => {
                     "x", new expr.Literal(1, 256),
                     v1
                 );
-                e1 = e1.optimise(ctx);
+                e1 = e1.optimise_(ctx);
                 expect(e1).to.equal(v1);
                 var e2 = new expr.Let(3,
                     "x", new expr.Literal(4, 256),
                     new expr.Variable(5, "y")
                 );
-                expect(e2.optimise(ctx)).to.equal(v1);
+                expect(e2.optimise_(ctx)).to.equal(v1);
 
                 var e3 = new expr.Let(6,
                     "x", new expr.Literal(7, 256),
@@ -493,7 +493,7 @@ describe("expr", () => {
                         new expr.Variable(10, "x"),
                     ])
                 );
-                expect(e3.optimise(ctx).equals(
+                expect(e3.optimise_(ctx).equals(
                     new expr.Vector(8, [
                         new expr.Literal(-1, 256),
                         new expr.Literal(-1, 256),
