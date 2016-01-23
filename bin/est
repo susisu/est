@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+
+/*
+ * est
+ * copyright (c) 2015 Susisu
+ */
+
+"use strict";
+
+process.title = "est";
+
+var fs = require("fs");
+var co = require("co");
+
+var est = require("..");
+
+var program = require("commander");
+var packageInfo = require("../package.json");
+program.version(packageInfo["version"], "-v, --version");
+program.option("-e, --encoding <code>", "set input file encoding (default = utf8)", "utf8");
+program.option("-p, --program <file>", "read program from file");
+program.option("-t, --transpose", "transpose output");
+program.option("-x, --exponential", "output numbers in exponential notation");
+
+program
+    .arguments("[program] [file...]")
+    .action((prog, files) => {
+        co(function * () {
+            var encoding = program["encoding"];
+            var progname = "";
+            // read program if --program is set
+            if (program["program"]) {
+                files    = [prog].concat(files);
+                prog     = yield readFile(program["program"], encoding);
+                progname = program["program"];
+            }
+            // parse and optimise
+            var expr = est.parse(progname, prog).optimise();
+            // read data
+            var data = yield Promise.all(files.map(file => readFile(file, encoding)));
+            // execute program
+            var res = exec(expr, data);
+            // output result
+            var resStr;
+            try {
+                resStr = showData(res, program["transpose"], program["exponential"]);
+            }
+            catch (err) {
+                throw new Error("invalid output");
+            }
+            process.stdout.write(resStr + "\n");
+        }).catch(err => {
+            console.error(String(err));
+            process.exit(1);
+        });
+    });
+
+program.parse(process.argv);
+
+if (program.args.length === 0) {
+    program.help();
+}
+
+function readFile(filename, option) {
+    return new Promise((resolve, reject) =>
+        fs.readFile(filename, option, (err, data) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(data);
+        })
+    );
+}
+
+function exec(expr, data) {
+    var env = Object.create(est.prelude);
+    // read table data
+    data.forEach((d, i) => {
+        var table  = readTable(d);
+        var tableT = transpose(table);
+        env["$$T" + (i + 1).toString()] = table;
+        env["$$"  + (i + 1).toString()] = tableT;
+        if (i === 0) {
+            var numCols = tableT.length;
+            for (var col = 0; col < numCols; col++) {
+                env["$" + (col + 1).toString()] = tableT[col];
+            }
+        }
+    });
+    // evaluate
+    return expr.eval(env);
+}
+function readTable(data) {
+    var table = data.split(/\n+/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && line[0] !== "#")
+        .map(line => line.split(/\s+/).map(x => parseFloat(x)));
+    var height = table.length;
+    var width  = 0;
+    var i, j;
+    // calculate table width
+    for (i = 0; i < height; i++) {
+        if (table[i].length > width) {
+            width = table[i].length;
+        }
+    }
+    // fill empty field with NaN
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
+            if (table[i][j] === undefined) {
+                table[i][j] = NaN;
+            } 
+        }
+    }
+    return table;
+}
+
+function transpose(table) {
+    var height = table.length;
+    var width  = 0;
+    var i, j;
+    // calculate table width
+    for (i = 0; i < height; i++) {
+        if (table[i].length > width) {
+            width = table[i].length;
+        }
+    }
+    // create transposed table
+    var t = [];
+    for (i = 0; i < width; i++) {
+        t[i] = [];
+        for (j = 0; j < height; j++) {
+            if (table[j][i] === undefined) {
+                t[i][j] = NaN;
+            }
+            else {
+                t[i][j] = table[j][i];
+            }
+        }
+    }
+    return t;
+}
+
+function showData(data, transp, exp) {
+    var t = est.value.typeOf(data);
+    switch (t) {
+    case est.value.Type.VECTOR:
+        var r = rank(data);
+        switch (r) {
+        case 1:
+            return transp
+                ? data.map(x => showData(x, transp, exp)).join("\t")
+                : data.map(x => showData(x, transp, exp)).join("\n")
+        case 2:
+            return (transp ? data : transpose(data)).map(row =>
+                row.map(x => showData(x, transp, exp)).join("\t")
+            ).join("\n");
+        default:
+            throw new Error("invalid data");
+        }
+    case est.value.Type.NUMBER:
+        return exp ? data.toExponential() : data.toString();
+    default:
+        return data.toString();
+    }
+}
+
+function rank(data) {
+    var t = est.value.typeOf(data);
+    if (t === est.value.Type.VECTOR) {
+        var cr = data.length === 0 ? 0 : rank(data[0]);
+        for (var i = 1; i < data.length; i++) {
+            if (rank(data[i]) !== cr) {
+                throw new Error("invalid data");
+            }
+        }
+        return cr + 1;
+    }
+    else {
+        return 0;
+    }
+}
