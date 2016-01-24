@@ -10,9 +10,11 @@
 process.title = "est";
 
 var fs = require("fs");
+var vm = require("vm");
 var co = require("co");
 
 var est = require("..");
+var DEFAULT_ESTENV_FILE = "./estenv.js";
 
 var program = require("commander");
 var packageInfo = require("../package.json");
@@ -22,6 +24,7 @@ program.version(packageInfo["version"], "-v, --version")
     .option("-p, --program <file>", "read program from file")
     .option("-t, --transpose", "transpose output")
     .option("-x, --exponential", "output numbers in exponential notation")
+    .option("-E, --estenv <file>", "load JavasSript extension (default = estenv.js)")
     .parse(process.argv);
 
 if (program.args.length === 0 && !program["program"]) {
@@ -29,9 +32,8 @@ if (program.args.length === 0 && !program["program"]) {
 }
 
 var main = co(function * () {
-    var encoding = program["encoding"];
     var progfile, prog, files;
-    // read program if --program is set
+    // read program from file if --program is set
     if (program["program"]) {
         progfile = program["program"];
         prog     = yield readFile(program["program"], "utf8");
@@ -45,9 +47,9 @@ var main = co(function * () {
     // parse and optimise
     var expr = est.parse(progfile, prog).optimise();
     // read data
-    var data = yield Promise.all(files.map(file => readFile(file, encoding)));
+    var data = yield Promise.all(files.map(file => readFile(file, program["encoding"])));
     // execute program
-    var res = exec(expr, data);
+    var res = yield exec(expr, data, program["estenv"]);
     // output result
     var resStr;
     try {
@@ -62,6 +64,7 @@ var main = co(function * () {
     process.exit(1);
 });
 
+
 function readFile(filename, option) {
     return new Promise((resolve, reject) =>
         fs.readFile(filename, option, (err, data) => {
@@ -74,24 +77,63 @@ function readFile(filename, option) {
     );
 }
 
-function exec(expr, data) {
-    var env = Object.create(est.prelude);
-    // read table data
-    data.forEach((d, i) => {
-        var table  = readTable(d);
-        var tableT = transpose(table);
-        env["$$T" + (i + 1).toString()] = table;
-        env["$$"  + (i + 1).toString()] = tableT;
-        if (i === 0) {
-            var numCols = tableT.length;
-            for (var col = 0; col < numCols; col++) {
-                env["$" + (col + 1).toString()] = tableT[col];
+function exec(expr, data, estenvfile) {
+    return co(function * () {
+        var env = Object.create(est.prelude);
+        // load JavaScript extension file
+        var estenv;
+        if (estenvfile) {
+            estenv = yield readFile(estenvfile, "utf8");
+        }
+        else {
+            estenvfile = DEFAULT_ESTENV_FILE;
+            try {
+                estenv = yield readFile(estenvfile, "utf8");
+            }
+            catch (err) {
+                // throws error only when the --estenv option is specified
             }
         }
+        if (estenv) {
+            var sandbox = Object.create(null);
+            sandbox["est"] = est;
+            sandbox["env"] = env;
+            Object.freeze(sandbox);
+            var context = vm.createContext(sandbox);
+            try {
+                var script  = new vm.Script(
+                    "(function(est,env){\n" + estenv + "\n})(est,env)",
+                    { filename: estenvfile, displayErrors: true, lineOffset: -1 }
+                );
+            }
+            catch (err) {
+                // TODO: more informative error message
+                throw new Error("in " + estenvfile + ":\n" + String(err));
+            }
+            // NOTE: this prints error information to stderr
+            script.runInContext(
+                context,
+                { filename: estenvfile, displayErrors: true, lineOffset: -1 }
+            );
+        }
+        // read table data
+        data.forEach((d, i) => {
+            var table  = readTable(d);
+            var tableT = transpose(table);
+            env["$$T" + (i + 1).toString()] = table;
+            env["$$"  + (i + 1).toString()] = tableT;
+            if (i === 0) {
+                var numCols = tableT.length;
+                for (var col = 0; col < numCols; col++) {
+                    env["$" + (col + 1).toString()] = tableT[col];
+                }
+            }
+        });
+        // evaluate
+        return expr.eval(env);
     });
-    // evaluate
-    return expr.eval(env);
 }
+
 function readTable(data) {
     var table = data.split(/\n+/)
         .map(line => line.trim())
@@ -149,11 +191,11 @@ function showData(data, transp, exp) {
     case est.value.Type.VECTOR:
         var r = rank(data);
         switch (r) {
-        case 1:
+        case 1: // simple vector
             return transp
                 ? data.map(x => showData(x, transp, exp)).join("\t")
                 : data.map(x => showData(x, transp, exp)).join("\n")
-        case 2:
+        case 2: // matrix
             return (transp ? data : transpose(data)).map(row =>
                 row.map(x => showData(x, transp, exp)).join("\t")
             ).join("\n");
