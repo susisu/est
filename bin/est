@@ -34,7 +34,7 @@ var main = co(function * () {
     // read program if --program is set
     if (program["program"]) {
         progfile = program["program"];
-        prog     = yield readFile(program["program"], encoding);
+        prog     = yield readFile(program["program"], "utf8");
         files    = program.args;
     }
     else {
