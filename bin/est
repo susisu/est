@@ -16,50 +16,51 @@ var est = require("..");
 
 var program = require("commander");
 var packageInfo = require("../package.json");
-program.version(packageInfo["version"], "-v, --version");
-program.option("-e, --encoding <code>", "set input file encoding (default = utf8)", "utf8");
-program.option("-p, --program <file>", "read program from file");
-program.option("-t, --transpose", "transpose output");
-program.option("-x, --exponential", "output numbers in exponential notation");
+program.version(packageInfo["version"], "-v, --version")
+    .usage("[options] ['prog' | -p progfile] [file...]")
+    .option("-e, --encoding <code>", "set input file encoding (default = utf8)", "utf8")
+    .option("-p, --program <file>", "read program from file")
+    .option("-t, --transpose", "transpose output")
+    .option("-x, --exponential", "output numbers in exponential notation")
+    .parse(process.argv);
 
-program
-    .arguments("[program] [file...]")
-    .action((prog, files) => {
-        co(function * () {
-            var encoding = program["encoding"];
-            var progname = "";
-            // read program if --program is set
-            if (program["program"]) {
-                files    = [prog].concat(files);
-                prog     = yield readFile(program["program"], encoding);
-                progname = program["program"];
-            }
-            // parse and optimise
-            var expr = est.parse(progname, prog).optimise();
-            // read data
-            var data = yield Promise.all(files.map(file => readFile(file, encoding)));
-            // execute program
-            var res = exec(expr, data);
-            // output result
-            var resStr;
-            try {
-                resStr = showData(res, program["transpose"], program["exponential"]);
-            }
-            catch (err) {
-                throw new Error("invalid output");
-            }
-            process.stdout.write(resStr + "\n");
-        }).catch(err => {
-            console.error(String(err));
-            process.exit(1);
-        });
-    });
-
-program.parse(process.argv);
-
-if (program.args.length === 0) {
+if (program.args.length === 0 && !program["program"]) {
     program.help();
 }
+
+var main = co(function * () {
+    var encoding = program["encoding"];
+    var progfile, prog, files;
+    // read program if --program is set
+    if (program["program"]) {
+        progfile = program["program"];
+        prog     = yield readFile(program["program"], encoding);
+        files    = program.args;
+    }
+    else {
+        progfile = "";
+        prog     = program.args[0];
+        files    = program.args.slice(1);
+    }
+    // parse and optimise
+    var expr = est.parse(progfile, prog).optimise();
+    // read data
+    var data = yield Promise.all(files.map(file => readFile(file, encoding)));
+    // execute program
+    var res = exec(expr, data);
+    // output result
+    var resStr;
+    try {
+        resStr = showData(res, program["transpose"], program["exponential"]);
+    }
+    catch (err) {
+        throw new Error("invalid output");
+    }
+    process.stdout.write(resStr + "\n");
+}).catch(err => {
+    console.error(String(err));
+    process.exit(1);
+});
 
 function readFile(filename, option) {
     return new Promise((resolve, reject) =>
