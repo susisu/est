@@ -14,6 +14,8 @@ var vm = require("vm");
 var co = require("co");
 
 var est = require("..");
+
+var PROGRAM_ENCODING = "utf8";
 var DEFAULT_ESTENV_FILE = "./estenv.js";
 
 var program = require("commander");
@@ -24,7 +26,7 @@ program.version(packageInfo["version"], "-v, --version")
     .option("-p, --program <file>", "read program from file")
     .option("-t, --transpose", "transpose output")
     .option("-x, --exponential", "output numbers in exponential notation")
-    .option("-E, --estenv <file>", "load JavasSript extension (default = estenv.js)")
+    .option("-E, --estenv <file>", "load JavasSript extension (default = estenv.js)") // TODO: multiple extensions
     .parse(process.argv);
 
 if (program.args.length === 0 && !program["program"]) {
@@ -36,7 +38,7 @@ var main = co(function * () {
     // read program from file if --program is set
     if (program["program"]) {
         progfile = program["program"];
-        prog     = yield readFile(program["program"], "utf8");
+        prog     = yield readFile(program["program"], PROGRAM_ENCODING);
         files    = program.args;
     }
     else {
@@ -83,12 +85,12 @@ function exec(expr, data, estenvfile) {
         // load JavaScript extension file
         var estenv;
         if (estenvfile) {
-            estenv = yield readFile(estenvfile, "utf8");
+            estenv = yield readFile(estenvfile, PROGRAM_ENCODING);
         }
         else {
             estenvfile = DEFAULT_ESTENV_FILE;
             try {
-                estenv = yield readFile(estenvfile, "utf8");
+                estenv = yield readFile(estenvfile, PROGRAM_ENCODING);
             }
             catch (err) {
                 // throws error only when the --estenv option is specified
@@ -100,17 +102,18 @@ function exec(expr, data, estenvfile) {
             sandbox["env"] = env;
             Object.freeze(sandbox);
             var context = vm.createContext(sandbox);
+            var script;
             try {
-                var script  = new vm.Script(
+                script  = new vm.Script(
                     "(function(est,env){\n" + estenv + "\n})(est,env)",
                     { filename: estenvfile, displayErrors: true, lineOffset: -1 }
                 );
             }
             catch (err) {
-                // TODO: more informative error message
+                // TODO: more informative error messages
                 throw new Error("in " + estenvfile + ":\n" + String(err));
             }
-            // NOTE: this prints error information to stderr
+            // NOTE: this might print error information to stderr
             script.runInContext(
                 context,
                 { filename: estenvfile, displayErrors: true, lineOffset: -1 }
