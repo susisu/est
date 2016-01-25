@@ -78,13 +78,7 @@ var main = co(function * () {
     }
     var res = exec(expr, data, extensions);
     // output result
-    var resStr;
-    try {
-        resStr = showData(res, program["transpose"], program["exponential"]);
-    }
-    catch (err) {
-        throw new Error("invalid output");
-    }
+    var resStr = showData(res, program["transpose"], program["exponential"]);
     process.stdout.write(resStr + "\n");
 }).catch(err => {
     console.error(String(err));
@@ -196,12 +190,12 @@ function showData(data, transp, exp) {
                 row.map(x => showData(x, transp, exp)).join("\t")
             ).join("\n");
         default:
-            throw new Error("invalid data");
+            throw new Error("invalid data: expected simple vector or matrix, actual more complex structure");
         }
     case est.value.Type.NUMBER:
         return exp ? data.toExponential() : data.toString();
     case est.value.Type.FUNCTION:
-        throw new Error("invalid data");
+        throw new Error("invalid data: unexpected " + est.value.Type.FUNCTION);
     default:
         return data.toString();
     }
@@ -213,7 +207,7 @@ function rank(data) {
         var cr = data.length === 0 ? 0 : rank(data[0]);
         for (var i = 1; i < data.length; i++) {
             if (rank(data[i]) !== cr) {
-                throw new Error("invalid data");
+                throw new Error("invalid data structure");
             }
         }
         return cr + 1;
