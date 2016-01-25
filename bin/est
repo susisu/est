@@ -9,14 +9,16 @@
 
 process.title = "est";
 
-var fs = require("fs");
-var vm = require("vm");
-var co = require("co");
+var fs   = require("fs");
+var path = require("path");
+var co   = require("co");
 
 var est = require("..");
 
-var PROGRAM_ENCODING = "utf8";
-var DEFAULT_ESTENV_FILE = "./estenv.js";
+var PROGRAM_ENCODING           = "utf8";
+var DEFAULT_EXTENSION_FILE     = "estenv.js";
+var CWD                        = process.cwd();
+var DEFAULT_EXTENSION_FULLNAME = path.join(CWD, DEFAULT_EXTENSION_FILE);
 
 var program = require("commander");
 var packageInfo = require("../package.json");
@@ -26,7 +28,9 @@ program.version(packageInfo["version"], "-v, --version")
     .option("-p, --program <file>", "read program from file")
     .option("-t, --transpose", "transpose output")
     .option("-x, --exponential", "output numbers in exponential notation")
-    .option("-E, --estenv <file>", "load JavasSript extension (default = estenv.js)") // TODO: multiple extensions
+    .option(
+        "-E, --extension <file>", "load JavasSript extension (default = estenv.js)",
+        (file, list) => { list.push(file); return list; }, [])
     .parse(process.argv);
 
 if (program.args.length === 0 && !program["program"]) {
@@ -51,7 +55,28 @@ var main = co(function * () {
     // read data
     var data = yield Promise.all(files.map(file => readFile(file, program["encoding"])));
     // execute program
-    var res = yield exec(expr, data, program["estenv"]);
+    var extensions = program["extension"].map(file => ({
+        file     : file,
+        extension: require(path.join(CWD, file))
+    }));
+    var extfullnames = program["extension"].map(file => path.join(CWD, file));
+    if (extfullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
+        try {
+            extensions.push({
+                file     : DEFAULT_EXTENSION_FILE,
+                extension: require(DEFAULT_EXTENSION_FULLNAME)
+            });
+        }
+        catch (err) {
+            if (err instanceof Error && err.message.indexOf(DEFAULT_EXTENSION_FULLNAME) >= 0) {
+                // ignore
+            }
+            else {
+                throw err;
+            }
+        }
+    }
+    var res = exec(expr, data, extensions);
     // output result
     var resStr;
     try {
@@ -79,62 +104,30 @@ function readFile(filename, option) {
     );
 }
 
-function exec(expr, data, estenvfile) {
-    return co(function * () {
-        var env = Object.create(est.prelude);
-        // load JavaScript extension file
-        var estenv;
-        if (estenvfile) {
-            estenv = yield readFile(estenvfile, PROGRAM_ENCODING);
+function exec(expr, data, extensions) {
+    var env = Object.create(est.prelude);
+    // load JavaScript extension
+    extensions.forEach(ext => {
+        if (typeof ext.extension !== "function") {
+            throw new Error("extension '" + ext.file + "' is invalid");
         }
-        else {
-            estenvfile = DEFAULT_ESTENV_FILE;
-            try {
-                estenv = yield readFile(estenvfile, PROGRAM_ENCODING);
-            }
-            catch (err) {
-                // throws error only when the --estenv option is specified
-            }
-        }
-        if (estenv) {
-            var sandbox = Object.create(null);
-            sandbox["est"] = est;
-            sandbox["env"] = env;
-            Object.freeze(sandbox);
-            var context = vm.createContext(sandbox);
-            var script;
-            try {
-                script  = new vm.Script(
-                    "(function(est,env){\n" + estenv + "\n})(est,env)",
-                    { filename: estenvfile, displayErrors: true, lineOffset: -1 }
-                );
-            }
-            catch (err) {
-                // TODO: more informative error messages
-                throw new Error("in " + estenvfile + ":\n" + String(err));
-            }
-            // NOTE: this might print error information to stderr
-            script.runInContext(
-                context,
-                { filename: estenvfile, displayErrors: true, lineOffset: -1 }
-            );
-        }
-        // read table data
-        data.forEach((d, i) => {
-            var table  = readTable(d);
-            var tableT = transpose(table);
-            env["$$T" + (i + 1).toString()] = table;
-            env["$$"  + (i + 1).toString()] = tableT;
-            if (i === 0) {
-                var numCols = tableT.length;
-                for (var col = 0; col < numCols; col++) {
-                    env["$" + (col + 1).toString()] = tableT[col];
-                }
-            }
-        });
-        // evaluate
-        return expr.eval(env);
+        ext.extension(est, env);
     });
+    // read table data
+    data.forEach((d, i) => {
+        var table  = readTable(d);
+        var tableT = transpose(table);
+        env["$$T" + (i + 1).toString()] = table;
+        env["$$"  + (i + 1).toString()] = tableT;
+        if (i === 0) {
+            var numCols = tableT.length;
+            for (var col = 0; col < numCols; col++) {
+                env["$" + (col + 1).toString()] = tableT[col];
+            }
+        }
+    });
+    // evaluate
+    return expr.eval(env);
 }
 
 function readTable(data) {
