@@ -207,6 +207,8 @@ function showData(data, transp, exp) {
         }
     case est.value.Type.NUMBER:
         return exp ? data.toExponential() : data.toString();
+    case est.value.Type.FUNCTION:
+        throw new Error("invalid data");
     default:
         return data.toString();
     }
