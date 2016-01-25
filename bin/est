@@ -17,8 +17,7 @@ var est = require("..");
 
 var PROGRAM_ENCODING           = "utf8";
 var DEFAULT_EXTENSION_FILE     = "estenv.js";
-var CWD                        = process.cwd();
-var DEFAULT_EXTENSION_FULLNAME = path.join(CWD, DEFAULT_EXTENSION_FILE);
+var DEFAULT_EXTENSION_FULLNAME = path.resolve(DEFAULT_EXTENSION_FILE);
 
 var program = require("commander");
 var packageInfo = require("../package.json");
@@ -57,9 +56,9 @@ var main = co(function * () {
     // execute program
     var extensions = program["extension"].map(file => ({
         file     : file,
-        extension: require(path.join(CWD, file))
+        extension: require(path.resolve(file))
     }));
-    var extfullnames = program["extension"].map(file => path.join(CWD, file));
+    var extfullnames = program["extension"].map(file => path.resolve(file));
     if (extfullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
         try {
             extensions.push({
