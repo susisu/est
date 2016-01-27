@@ -29,7 +29,8 @@ program.version(packageInfo["version"], "-v, --version")
     .option("-x, --exponential", "output numbers in exponential notation")
     .option(
         "-E, --extension <file>", "load JavasSript extension (default = estenv.js)",
-        (file, list) => { list.push(file); return list; }, [])
+        (file, list) => { list.push(file); return list; }, []
+    )
     .parse(process.argv);
 
 if (program.args.length === 0 && !program["program"]) {
@@ -53,28 +54,9 @@ var main = co(function * () {
     var expr = est.parse(progfile, prog).optimise();
     // read data
     var data = yield Promise.all(files.map(file => readFile(file, program["encoding"])));
+    // load extensions
+    var extensions = yield loadExtensions(program["extension"]);
     // execute program
-    var extensions = program["extension"].map(file => ({
-        file     : file,
-        extension: require(path.resolve(file))
-    }));
-    var extfullnames = program["extension"].map(file => path.resolve(file));
-    if (extfullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
-        try {
-            extensions.push({
-                file     : DEFAULT_EXTENSION_FILE,
-                extension: require(DEFAULT_EXTENSION_FULLNAME)
-            });
-        }
-        catch (err) {
-            if (err instanceof Error && err.message.indexOf(DEFAULT_EXTENSION_FULLNAME) >= 0) {
-                // ignore
-            }
-            else {
-                throw err;
-            }
-        }
-    }
     var res = exec(expr, data, extensions);
     // output result
     var resStr = showData(res, program["transpose"], program["exponential"]);
@@ -95,6 +77,45 @@ function readFile(filename, option) {
             resolve(data);
         })
     );
+}
+
+function access(filename, mode) {
+    return new Promise((resolve, reject) => {
+        fs.access(filename, mode, err => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve();
+        });
+    });
+}
+
+function loadExtensions(files) {
+    return co(function * () {
+        var extensions = files.map(file => ({
+            file     : file,
+            extension: require(path.resolve(file))
+        }));
+        var extfullnames = files.map(file => path.resolve(file));
+        if (extfullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
+            var defaultExt = false;
+            try {
+                yield access(DEFAULT_EXTENSION_FULLNAME, fs.R_OK);
+                defaultExt = true;
+            }
+            catch (err) {
+                // ignore
+            }
+            if (defaultExt) {
+                extensions.push({
+                    file     : DEFAULT_EXTENSION_FILE,
+                    extension: require(DEFAULT_EXTENSION_FULLNAME)
+                });
+            }
+        }
+        return extensions;
+    });
 }
 
 function exec(expr, data, extensions) {
