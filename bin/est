@@ -93,10 +93,7 @@ function access(filename, mode) {
 
 function loadExtensions(files) {
     return co(function * () {
-        var extensions = files.map(file => ({
-            file     : file,
-            extension: require(path.resolve(file))
-        }));
+        var extensions = [];
         var extfullnames = files.map(file => path.resolve(file));
         if (extfullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
             var defaultExt = false;
@@ -114,6 +111,10 @@ function loadExtensions(files) {
                 });
             }
         }
+        files.forEach(file => extensions.push({
+            file     : file,
+            extension: require(path.resolve(file))
+        }));
         return extensions;
     });
 }
