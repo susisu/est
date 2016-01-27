@@ -104,17 +104,29 @@ function loadExtensions(files) {
             catch (err) {
                 // ignore
             }
-            if (defaultExt) {
-                extensions.push({
-                    file     : DEFAULT_EXTENSION_FILE,
-                    extension: require(DEFAULT_EXTENSION_FULLNAME)
-                });
+            try {
+                if (defaultExt) {
+                    extensions.push({
+                        file     : DEFAULT_EXTENSION_FILE,
+                        extension: require(DEFAULT_EXTENSION_FULLNAME)
+                    });
+                }
+            }
+            catch (err) {
+                throw new Error("in '" + DEFAULT_EXTENSION_FILE + "':\n" + String(err));
             }
         }
-        files.forEach(file => extensions.push({
-            file     : file,
-            extension: require(path.resolve(file))
-        }));
+        files.forEach(file => {
+            try {
+                extensions.push({
+                    file     : file,
+                    extension: require(path.resolve(file))
+                });
+            }
+            catch (err) {
+                throw new Error("in '" + file + "':\n" + String(err));
+            }
+        });
         return extensions;
     });
 }
@@ -126,7 +138,12 @@ function exec(expr, data, extensions) {
         if (typeof ext.extension !== "function") {
             throw new Error("extension '" + ext.file + "' is invalid");
         }
-        ext.extension(est, env);
+        try {
+            ext.extension(est, env);
+        }
+        catch (err) {
+            throw new Error("in '" + ext.file + "':\n" + String(err));
+        }
     });
     // read table data
     data.forEach((d, i) => {
