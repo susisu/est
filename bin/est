@@ -10,13 +10,14 @@
 process.title = "est";
 
 var fs   = require("fs");
+var os   = require("os");
 var path = require("path");
 var co   = require("co");
 
 var est = require("..");
 
 var PROGRAM_ENCODING           = "utf8";
-var DEFAULT_EXTENSION_FILE     = "estenv.js";
+var DEFAULT_EXTENSION_FILE     = path.join(os.homedir(), ".est");
 var DEFAULT_EXTENSION_FULLNAME = path.resolve(DEFAULT_EXTENSION_FILE);
 
 var program = require("commander");
