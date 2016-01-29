@@ -139,7 +139,10 @@ function exec(expr, data, extensions) {
             throw new Error("extension '" + ext.file + "' is invalid");
         }
         try {
-            ext.extension(est, env);
+            ext.extension({
+                est: est,
+                env: env
+            });
         }
         catch (err) {
             throw new Error("in '" + ext.file + "':\n" + String(err));
