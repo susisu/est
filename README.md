@@ -68,7 +68,7 @@ The unary and binary functions are automatically mapped if applied to vector.
 
 ### Options
 * `-e`, `--encoding <code>`: set encoding of input files (default = utf8)
-* `-f`, `--format <name>: set fromat type (default = table)
+* `-f`, `--format <name>`: set fromat type (default = table)
 * `-p`, `--program <file>`: read program from `file`
 * `-t`, `--transpose`: transpose output
 * `-x`, `--exponential`: output numbers in exponential notation
