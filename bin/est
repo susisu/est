@@ -30,7 +30,7 @@ program.version(packageInfo["version"], "-v, --version")
     .option("-t, --transpose", "transpose output")
     .option("-x, --exponential", "output numbers in exponential notation")
     .option(
-        "-E, --extension <file>", "load JavasSript extension (default = estenv.js)",
+        "-E, --extension <file>", "load JavasSript extension",
         (file, list) => { list.push(file); return list; }, []
     )
     .parse(process.argv);
