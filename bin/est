@@ -16,6 +16,8 @@ var co   = require("co");
 
 var est = require("..");
 
+var DEFAULT_ENCODING           = "utf8";
+var DEFAULT_FORMAT             = "table";
 var DEFAULT_EXTENSION_FILE     = path.join(os.homedir(), ".est");
 var DEFAULT_EXTENSION_FULLNAME = path.resolve(DEFAULT_EXTENSION_FILE);
 
@@ -23,8 +25,8 @@ var program = require("commander");
 var packageInfo = require("../package.json");
 program.version(packageInfo["version"], "-v, --version")
     .usage("[options] ['prog' | -p progfile] [file...]")
-    .option("-e, --encoding <code>", "set input file encoding (default = utf8)", "utf8")
-    .option("-f, --format <name>", "set input file format (default = table)", "table")
+    .option("-e, --encoding <code>", "set input file encoding (default = utf8)", DEFAULT_ENCODING)
+    .option("-f, --format <name>", "set input file format (default = table)", DEFAULT_FORMAT)
     .option("-p, --program <file>", "read program from file")
     .option("-t, --transpose", "transpose output")
     .option("-x, --exponential", "output numbers in exponential notation")
