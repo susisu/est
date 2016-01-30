@@ -60,10 +60,10 @@ var main = co(function * () {
     // load extensions
     yield loadExtensions(program["extension"], env, fmt);
     // set format
-    var readData = fmt[program["format"]];
-    if (readData === undefined) {
+    if (!Object.prototype.hasOwnProperty.call(fmt, program["format"])) {
         throw new Error("unknown format: " + program["format"]);
     }
+    var readData = fmt[program["format"]];
     if (typeof readData !== "function") {
         throw new TypeError("format '" + program["format"] + "' is invalid");
     }
