@@ -16,7 +16,6 @@ var co   = require("co");
 
 var est = require("..");
 
-var PROGRAM_ENCODING           = "utf8";
 var DEFAULT_EXTENSION_FILE     = path.join(os.homedir(), ".est");
 var DEFAULT_EXTENSION_FULLNAME = path.resolve(DEFAULT_EXTENSION_FILE);
 
