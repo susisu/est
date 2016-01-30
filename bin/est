@@ -25,6 +25,7 @@ var packageInfo = require("../package.json");
 program.version(packageInfo["version"], "-v, --version")
     .usage("[options] ['prog' | -p progfile] [file...]")
     .option("-e, --encoding <code>", "set input file encoding (default = utf8)", "utf8")
+    .option("-f, --format <name>", "set input file format (default = table)", "table")
     .option("-p, --program <file>", "read program from file")
     .option("-t, --transpose", "transpose output")
     .option("-x, --exponential", "output numbers in exponential notation")
@@ -39,64 +40,54 @@ if (program.args.length === 0 && !program["program"]) {
 }
 
 var main = co(function * () {
-    var progfile, prog, files;
+    var progFile, prog, dataFiles;
     // read program from file if --program is set
     if (program["program"]) {
-        progfile = program["program"];
-        prog     = yield readFile(program["program"], PROGRAM_ENCODING);
-        files    = program.args;
+        progFile  = program["program"];
+        prog      = yield readFile(program["program"], PROGRAM_ENCODING);
+        dataFiles = program.args;
     }
     else {
-        progfile = "";
-        prog     = program.args[0];
-        files    = program.args.slice(1);
+        progFile  = "";
+        prog      = program.args[0];
+        dataFiles = program.args.slice(1);
     }
-    // parse and optimise
-    var expr = est.parse(progfile, prog).optimise();
-    // read data
-    var data = yield Promise.all(files.map(file => readFile(file, program["encoding"])));
+    // init env and fmt
+    var env = Object.create(est.prelude);
+    var fmt = Object.create(null);
+    fmt["table"] = readTable;
     // load extensions
-    var extensions = yield loadExtensions(program["extension"]);
-    // execute program
-    var res = exec(expr, data, extensions);
+    yield loadExtensions(program["extension"], env, fmt);
+    // set format
+    var readData = fmt[program["format"]];
+    if (readData === undefined) {
+        throw new Error("unknown format: " + program["format"]);
+    }
+    if (typeof readData !== "function") {
+        throw new TypeError("format '" + program["format"] + "' is invalid");
+    }
+    // parse program and optimise
+    var expr = est.parse(progFile, prog).optimise();
+    // read data from file
+    var data = yield Promise.all(dataFiles.map(file => readFile(file, program["encoding"])));
+    // assign data to env
+    data.forEach((d, i) => readData(env, d, i));
+    // evaluate program
+    var result = expr.eval(env);
     // output result
-    var resStr = showData(res, program["transpose"], program["exponential"]);
-    process.stdout.write(resStr + "\n");
+    process.stdout.write(showData(result, program["transpose"], program["exponential"]) + "\n");
 }).catch(err => {
     console.error(String(err));
     process.exit(1);
 });
 
-
-function readFile(filename, option) {
-    return new Promise((resolve, reject) =>
-        fs.readFile(filename, option, (err, data) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve(data);
-        })
-    );
-}
-
-function access(filename, mode) {
-    return new Promise((resolve, reject) => {
-        fs.access(filename, mode, err => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve();
-        });
-    });
-}
-
-function loadExtensions(files) {
+// load extensions from file
+function loadExtensions(files, env, fmt) {
     return co(function * () {
         var extensions = [];
-        var extfullnames = files.map(file => path.resolve(file));
-        if (extfullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
+        // load from files
+        var extFullnames = files.map(file => path.resolve(file));
+        if (extFullnames.indexOf(DEFAULT_EXTENSION_FULLNAME) === -1) {
             var defaultExt = false;
             try {
                 yield access(DEFAULT_EXTENSION_FULLNAME, fs.R_OK);
@@ -128,45 +119,40 @@ function loadExtensions(files) {
                 throw new Error("in '" + file + "':\n" + String(err));
             }
         });
-        return extensions;
-    });
-}
-
-function exec(expr, data, extensions) {
-    var env = Object.create(est.prelude);
-    // load JavaScript extension
-    extensions.forEach(ext => {
-        if (typeof ext.extension !== "function") {
-            throw new Error("extension '" + ext.file + "' is invalid");
-        }
-        try {
-            ext.extension({
-                est: est,
-                env: env
-            });
-        }
-        catch (err) {
-            throw new Error("in '" + ext.file + "':\n" + String(err));
-        }
-    });
-    // read table data
-    data.forEach((d, i) => {
-        var table  = readTable(d);
-        var tableT = transpose(table);
-        env["$$T" + (i + 1).toString()] = table;
-        env["$$"  + (i + 1).toString()] = tableT;
-        if (i === 0) {
-            var numCols = tableT.length;
-            for (var col = 0; col < numCols; col++) {
-                env["$" + (col + 1).toString()] = tableT[col];
+        // run
+        extensions.forEach(ext => {
+            if (typeof ext.extension !== "function") {
+                throw new TypeError("extension '" + ext.file + "' is invalid");
             }
-        }
+            try {
+                ext.extension({
+                    est: est,
+                    env: env,
+                    fmt: fmt
+                });
+            }
+            catch (err) {
+                throw new Error("in '" + ext.file + "':\n" + String(err));
+            }
+        });
     });
-    // evaluate
-    return expr.eval(env);
 }
 
-function readTable(data) {
+// table input
+function readTable(env, data, index) {
+    var table  = parseTable(data);
+    var tableT = transpose(table);
+    env["$$T" + (index + 1).toString()] = table;
+    env["$$"  + (index + 1).toString()] = tableT;
+    if (index === 0) {
+        var numCols = tableT.length;
+        for (var col = 0; col < numCols; col++) {
+            env["$" + (col + 1).toString()] = tableT[col];
+        }
+    }
+}
+
+function parseTable(data) {
     var table = data.split(/\n+/)
         .map(line => line.trim())
         .filter(line => line.length > 0 && line[0] !== "#")
@@ -191,32 +177,7 @@ function readTable(data) {
     return table;
 }
 
-function transpose(table) {
-    var height = table.length;
-    var width  = 0;
-    var i, j;
-    // calculate table width
-    for (i = 0; i < height; i++) {
-        if (table[i].length > width) {
-            width = table[i].length;
-        }
-    }
-    // create transposed table
-    var t = [];
-    for (i = 0; i < width; i++) {
-        t[i] = [];
-        for (j = 0; j < height; j++) {
-            if (table[j][i] === undefined) {
-                t[i][j] = NaN;
-            }
-            else {
-                t[i][j] = table[j][i];
-            }
-        }
-    }
-    return t;
-}
-
+// data output utility
 function showData(data, transp, exp) {
     var t = est.value.typeOf(data);
     switch (t) {
@@ -243,6 +204,32 @@ function showData(data, transp, exp) {
     }
 }
 
+// file system utilities
+function readFile(filename, option) {
+    return new Promise((resolve, reject) =>
+        fs.readFile(filename, option, (err, data) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(data);
+        })
+    );
+}
+
+function access(filename, mode) {
+    return new Promise((resolve, reject) => {
+        fs.access(filename, mode, err => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve();
+        });
+    });
+}
+
+// table operations and manipulations
 function rank(data) {
     var t = est.value.typeOf(data);
     if (t === est.value.Type.VECTOR) {
@@ -257,4 +244,30 @@ function rank(data) {
     else {
         return 0;
     }
+}
+
+function transpose(table) {
+    var height = table.length;
+    var width  = 0;
+    var i, j;
+    // calculate table width
+    for (i = 0; i < height; i++) {
+        if (table[i].length > width) {
+            width = table[i].length;
+        }
+    }
+    // create transposed table
+    var t = [];
+    for (i = 0; i < width; i++) {
+        t[i] = [];
+        for (j = 0; j < height; j++) {
+            if (table[j][i] === undefined) {
+                t[i][j] = NaN;
+            }
+            else {
+                t[i][j] = table[j][i];
+            }
+        }
+    }
+    return t;
 }
