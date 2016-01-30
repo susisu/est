@@ -4,7 +4,7 @@ The easiest way to calculate something.
 ## Installation
 Node.js v4.0 or later is required.
 ``` shell
-npm install @susisu/est
+npm install -g @susisu/est
 ```
 
 ## Usage
@@ -59,7 +59,7 @@ NOTE: `f x + y` is recognized as `(f x) + y`, not `f (x + y)`.
 * Constants: `PI`, `E`, `LN2`, `LN10`, `LOG2E`, `LOG10E`, `SQRT1_2`, `SQRT2`
 * Unary functions: `+`, `-`, `abs`, `round`, `floor`, `ceil`, `sqrt`, `exp`, `log`, `log2`, `log10`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`
 * Binary functions: `+`, `-`, `*`, `/`, `%`, `**`, `log_`, `atan_`
-* Vector operation functions: index access `!`, `len`, `fst`, `sum`, `prod`, `avg`, `var`, `stddev`
+* Vector operation functions: index access `!`, `len`, `fst`, `sum`, `prod`, `avg`, `var`, `stddev`, `stderr`
 
 The input data are bound to `$$1`...`$$N` and the columns of the first data are bound to `$1`...`$N`.
 The transposed input (the rows are the original columns, and vice versa) are also bound to `$$T1`...`$$TN`.
@@ -67,10 +67,12 @@ The transposed input (the rows are the original columns, and vice versa) are als
 The unary and binary functions are automatically mapped if applied to vector.
 
 ### Options
-* `-e`, `--encoding <code>`: set encoding of input files
+* `-e`, `--encoding <code>`: set encoding of input files (default = utf8)
+* `-f`, `--format <name>: set fromat type (default = table)
 * `-p`, `--program <file>`: read program from `file`
 * `-t`, `--transpose`: transpose output
 * `-x`, `--exponential`: output numbers in exponential notation
+* `-E`, `--extension <file>`: load JavaScript extension; multiple extensions are allowed
 
 ## License
 [The MIT License](http://opensource.org/licenses/mit-license.php)
