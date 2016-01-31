@@ -30,6 +30,16 @@ describe("parser", () => {
                 )).to.be.true;
             }
             {
+                let e = parser.parse("test", `NaN`);
+                expect(Number.isNaN(e.value)).to.be.true;
+            }
+            {
+                let e = parser.parse("test", `Infinity`);
+                expect(e.equals(
+                    new expr.Literal(0, Infinity)
+                )).to.be.true;
+            }
+            {
                 let e = parser.parse("test", `x`);
                 expect(e.equals(
                     new expr.Variable(0, "x")
