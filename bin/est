@@ -45,7 +45,7 @@ co(function* () {
     // read program from file if --program is set
     if (program["program"]) {
         progFile  = program["program"];
-        prog      = yield readFile(program["program"], PROGRAM_ENCODING);
+        prog      = yield readFile(program["program"], program["encoding"]);
         dataFiles = program.args;
     }
     else {
