@@ -5,54 +5,52 @@
 
 "use strict";
 
-var chai   = require("chai"),
-    expect = chai.expect;
+const chai   = require("chai");
+const expect = chai.expect;
 
-var lq = require("loquat");
-
-var est    = require("../index.js"),
-    expr   = est.expr,
-    parser = est.parser;
+const est    = require("../index.js");
+const expr   = est.expr;
+const parser = est.parser;
 
 describe("parser", () => {
     describe("parse(name, src)", () => {
         it("should parse 'src' and return the result", () => {
             {
-                let e = parser.parse("test", `256`);
+                const e = parser.parse("test", "256");
                 expect(e.equals(
                     new expr.Literal(0, 256)
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `1.23e-4`);
+                const e = parser.parse("test", "1.23e-4");
                 expect(e.equals(
                     new expr.Literal(0, 1.23e-4)
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `NaN`);
+                const e = parser.parse("test", "NaN");
                 expect(Number.isNaN(e.value)).to.be.true;
             }
             {
-                let e = parser.parse("test", `Infinity`);
+                const e = parser.parse("test", "Infinity");
                 expect(e.equals(
                     new expr.Literal(0, Infinity)
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `x`);
+                const e = parser.parse("test", "x");
                 expect(e.equals(
                     new expr.Variable(0, "x")
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `op +`);
+                const e = parser.parse("test", "op +");
                 expect(e.equals(
                     new expr.Variable(0, "+")
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `f x y`);
+                const e = parser.parse("test", "f x y");
                 expect(e.equals(
                     new expr.Apply(0,
                         new expr.Apply(0, new expr.Variable(0, "f"), new expr.Variable(0, "x")),
@@ -61,7 +59,7 @@ describe("parser", () => {
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `let x = f y in z`);
+                const e = parser.parse("test", "let x = f y in z");
                 expect(e.equals(
                     new expr.Let(0,
                         "x", new expr.Apply(0, new expr.Variable(0, "f"), new expr.Variable(0, "y")),
@@ -70,7 +68,7 @@ describe("parser", () => {
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `x + y * z`);
+                const e = parser.parse("test", "x + y * z");
                 expect(e.equals(
                     new expr.Apply(0,
                         new expr.Apply(0, new expr.Variable(0, "+"), new expr.Variable(0, "x")),
@@ -82,13 +80,13 @@ describe("parser", () => {
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `[]`);
+                const e = parser.parse("test", "[]");
                 expect(e.equals(
                     new expr.Vector(0, [])
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `[256, x, let y = 128 in z]`);
+                const e = parser.parse("test", "[256, x, let y = 128 in z]");
                 expect(e.equals(
                     new expr.Vector(0, [
                         new expr.Literal(0, 256),
@@ -101,7 +99,7 @@ describe("parser", () => {
                 )).to.be.true;
             }
             {
-                let e = parser.parse("test", `
+                const e = parser.parse("test", `
                     let x = 256 # comment
                     in f x
                 `);
@@ -112,13 +110,13 @@ describe("parser", () => {
                     )
                 )).to.be.true;
             }
-            expect(() => parser.parse("test", ``)).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", `1_000_000`)).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", `op x`)).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", `x +`)).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", `x ??? y`)).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", `let x in x`)).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", `[1, 2, 3,]`)).to.throw(lq.ParseError);
+            expect(() => parser.parse("test", "")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "1_000_000")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "op x")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "x +")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "x ??? y")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "let x in x")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "[1, 2, 3,]")).to.throw(parser.ParseError);
         });
     });
 });

@@ -5,11 +5,11 @@
 
 "use strict";
 
-var chai   = require("chai"),
-    expect = chai.expect;
+const chai   = require("chai");
+const expect = chai.expect;
 
-var est   = require("../index.js"),
-    value = est.value;
+const est   = require("../index.js");
+const value = est.value;
 
 describe("value", () => {
     describe("typeOf(value)", () => {
