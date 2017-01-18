@@ -8,8 +8,6 @@
 const chai   = require("chai");
 const expect = chai.expect;
 
-const lq = require("loquat");
-
 const est    = require("../index.js");
 const expr   = est.expr;
 const parser = est.parser;
@@ -112,13 +110,13 @@ describe("parser", () => {
                     )
                 )).to.be.true;
             }
-            expect(() => parser.parse("test", "")).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", "1_000_000")).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", "op x")).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", "x +")).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", "x ??? y")).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", "let x in x")).to.throw(lq.ParseError);
-            expect(() => parser.parse("test", "[1, 2, 3,]")).to.throw(lq.ParseError);
+            expect(() => parser.parse("test", "")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "1_000_000")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "op x")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "x +")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "x ??? y")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "let x in x")).to.throw(parser.ParseError);
+            expect(() => parser.parse("test", "[1, 2, 3,]")).to.throw(parser.ParseError);
         });
     });
 });
